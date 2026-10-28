@@ -161,7 +161,7 @@ export const register: Register = on => {
     }
 
     const columns = e.props.bodyColumns ?? e.viewport?.columns ?? 100
-    const kind = kindOf(columns)
+    const kind = kindOf(columns, view !== null)
     const isWide = kind === 'wide'
     const cells = kind === 'tight' ? TIGHT_CELLS : CELLS
 

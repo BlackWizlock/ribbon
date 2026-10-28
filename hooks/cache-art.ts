@@ -28,10 +28,16 @@ export const TTL_MS = TTL_MIN * 60 * 1000
 
 /** One row needs about 78 columns for two windows; under that, each window stacks. */
 export const WIDE_AT = 78
+/**
+ * With the cache shown the same row also carries Robo, the chip, the minutes
+ * left or the idle time and price, and the Show button: about 30 columns more.
+ */
+export const WIDE_CACHE_AT = 112
 /** Under this the dot bars shrink and the cache gets its own row. */
 export const TIGHT_AT = 42
 
-export const kindOf = (columns: number): Kind => (columns >= WIDE_AT ? 'wide' : columns >= TIGHT_AT ? 'stacked' : 'tight')
+export const kindOf = (columns: number, withCache = false): Kind =>
+  columns >= (withCache ? WIDE_CACHE_AT : WIDE_AT) ? 'wide' : columns >= TIGHT_AT ? 'stacked' : 'tight'
 
 /**
  * The band's width in CSS pixels for a column count: the engine keeps 5 cells
