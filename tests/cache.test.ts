@@ -120,7 +120,7 @@ test('a cleared session drops the cache until the next reply', async ($, on) => 
   await band.unmount()
 })
 
-test('drawing surfaces keep the cache on one row in footnote text; the terminal stacks it until the row has room', async ($, on) => {
+test('drawing surfaces keep the cache on one row in caption text; the terminal stacks it until the row has room', async ($, on) => {
   mock.store(on)
   mock.clock(on, { now: NOW })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -129,12 +129,12 @@ test('drawing surfaces keep the cache on one row in footnote text; the terminal 
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: WARM_IDLE, context_tokens: 770000, model: 'claude-opus-5-5' })
 
-  // Desktop at 80 columns: one row, the text a step smaller so the cache and Show fit.
+  // Desktop at 80 columns: one row, the text two steps smaller so the cache and Show fit.
   const desk = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
   expect(await desk.find({ key: 'inline' })).toBeDefined()
   expect(await desk.find({ text: ' 42m left' })).toBeDefined()
   const sizes = new Set((await desk.findAll({ type: 'Text' })).map(t => t.props.size))
-  expect([...sizes]).toEqual(['footnote'])
+  expect([...sizes]).toEqual(['caption'])
   await desk.unmount()
 
   // The terminal has one text size: 100 columns fit the two windows, not the cache too.

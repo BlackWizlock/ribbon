@@ -208,9 +208,9 @@ export const roboShapes = (x: number, y: number, size: number, mode: Mode): stri
 
 /** Robo beside the chip in the band's row. */
 export const ROBO_SIZE = 26
-/** Robo beside the footnote-size text of the band's row. */
-export const ROBO_SMALL = 20
-/** The chip's font size beside the footnote-size text of the band's row. */
+/** Robo beside the caption-size text of the band's row. */
+export const ROBO_SMALL = 18
+/** The chip's font size beside the caption-size text of the band's row. */
 export const CHIP_SMALL = 11
 export const roboSvg = (mode: Mode, size = ROBO_SIZE): string => svgDoc(size, size, roboShapes(0, 0, size, mode), false)
 

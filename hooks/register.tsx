@@ -148,9 +148,9 @@ export const register: Register = on => {
     // Svg draws on desktop, mobile and VS Code; the terminal gets the text form.
     // Ask the surface, not the table: the terminal's table still lists Svg.
     const Svg = e.surface !== 'terminal' && 'Svg' in ui ? ui.Svg : null
-    // Drawing surfaces set the band in footnote text so the row and the cache fit
+    // Drawing surfaces set the band in caption text, the smallest step, so the row and the cache fit
     // where the body size would clip them; the terminal has one size and ignores it.
-    const size = Svg ? ('footnote' as const) : undefined
+    const size = Svg ? ('caption' as const) : undefined
     const list = await read($, windows)
     const now = await $.clock.now()
     const view = viewOf(await read($, cache), now)
