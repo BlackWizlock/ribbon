@@ -87,7 +87,8 @@ Open `/config` and find **ribbon**, or run `claude plugin configure ribbon@robon
 - **Usage figure** (`usage`): `left` (default) shows how much of each window is left. `used` shows how much is spent, the way Claude Code's own rate-limit figures count it; the dot bar then fills with what is used. **LOW** still shows when less than 15% is left.
 - **First window** (`first`): `7d` (default) or `5h`. Which window the band shows first.
 - **USAGE label** (`label`): `shown` (default) or `hidden`. Hidden drops the word USAGE and leaves just the windows.
-- **Layout** (`align`): `packed` (default) keeps the blocks together at the left, with Show at the right. `spread` puts equal gaps between the blocks so the band fills its width.
+- **Window colours** (`colors`): `fixed` (default) draws 7D orange and 5H yellow. `level` colours each window by the share used, like a traffic-light status line: green under 50%, yellow from 50%, red from 80%.
+- **Layout** (`align`): `packed` (default) keeps the blocks together at the left, with Show at the right. `spread` spaces the blocks evenly so the band fills its width.
 - **Text size** (`textSize`): `caption` (default), `footnote` or `body`. Desktop, VS Code and mobile only; the terminal has one size. Larger sizes stack the band at a wider width so nothing clips.
 
 ## Good to know

@@ -110,3 +110,21 @@ test('first: 5h draws the 5-hour window before the 7-day one', { options: { firs
     await band.unmount()
   }
 })
+
+test('colors: level paints each window by the share used, like a traffic-light status line', { options: { colors: 'level' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const texts = await band.findAll({ type: 'Text' })
+  const colorOf = (figure: string) => texts.find(t => JSON.stringify(t.children).includes(figure))?.props.color
+  // 5H is 58% used: yellow; 7D is 12.5% used: green
+  expect(colorOf('42% left')).toBe('#ffd700')
+  expect(colorOf('87.5% left')).toBe('#5fff00')
+  await band.unmount()
+})
