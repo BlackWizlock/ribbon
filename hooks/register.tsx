@@ -126,6 +126,8 @@ export const register: Register = (on, options) => {
   const offColor = dotStyle === 'mixed' ? EMPTY : EVEN_OFF
   const showCtx = options.context === 'shown'
   const words = options.words !== 'hidden'
+  // cells: 5 steps of 20% instead of 10 of 10%, for a shorter row.
+  const fullCells = options.cells === '5' ? 5 : CELLS
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -232,7 +234,7 @@ export const register: Register = (on, options) => {
     ))
     const kind = kindOf(columns, wideAt + extra)
     const isWide = kind === 'wide'
-    const cells = kind === 'tight' ? TIGHT_CELLS : CELLS
+    const cells = kind === 'tight' ? Math.min(TIGHT_CELLS, fullCells) : fullCells
 
     const parts = (w: Window) => {
       const left = Math.max(0, Math.round((100 - w.percentUsed) * 10) / 10)

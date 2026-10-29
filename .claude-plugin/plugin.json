@@ -58,6 +58,13 @@
       "default": "shown",
       "options": ["shown", "hidden"]
     },
+    "cells": {
+      "type": "string",
+      "title": "Dots per bar",
+      "description": "10 dots, one per 10%, or 5 dots, one per 20%, for a shorter row",
+      "default": "10",
+      "options": ["10", "5"]
+    },
     "align": {
       "type": "string",
       "title": "Layout",
