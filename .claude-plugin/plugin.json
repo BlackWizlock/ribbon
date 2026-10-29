@@ -30,10 +30,17 @@
       "default": "shown",
       "options": ["shown", "hidden"]
     },
+    "colors": {
+      "type": "string",
+      "title": "Window colours",
+      "description": "fixed draws 7D orange and 5H yellow; level colours each window by the share used: green under 50%, yellow from 50%, red from 80%",
+      "default": "fixed",
+      "options": ["fixed", "level"]
+    },
     "align": {
       "type": "string",
       "title": "Layout",
-      "description": "packed keeps the blocks together at the left; spread puts equal gaps between them so the band fills its width",
+      "description": "packed keeps the blocks together at the left; spread spaces them evenly so the band fills its width",
       "default": "packed",
       "options": ["packed", "spread"]
     },

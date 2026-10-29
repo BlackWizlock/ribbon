@@ -148,7 +148,7 @@ test('drawing surfaces keep the cache on one row in caption text; the terminal s
   await wide.unmount()
 })
 
-test('align: spread puts an equal gap between every block after the first window', { options: { align: 'spread' } }, async ($, on) => {
+test('align: spread spaces the blocks evenly across the row, with no empty spacers', { options: { align: 'spread' } }, async ($, on) => {
   mock.store(on)
   mock.clock(on, { now: NOW })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -158,15 +158,15 @@ test('align: spread puts an equal gap between every block after the first window
   await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: WARM_IDLE, context_tokens: 770000, model: 'claude-opus-5-5' })
 
   const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
-  // USAGE, 5H | 7D | cache | Show: three gaps, each one growing, and no single spacer before Show
-  const gaps = (await band.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('gap-'))
-  expect(gaps.length).toBe(3)
-  expect(gaps.every(g => g.props.flexGrow === 1)).toBe(true)
+  const row = await band.find({ key: 'row' })
+  expect(row?.props.justifyContent).toBe('space-between')
+  // USAGE rides with the first window; no lone spacer before Show
+  expect(await band.find({ key: 'head' })).toBeDefined()
   expect(await band.find({ key: 'grow' })).toBeUndefined()
   await band.unmount()
 })
 
-test('label: hidden drops USAGE, and spread still puts a gap between the two windows', { options: { label: 'hidden', align: 'spread' } }, async ($, on) => {
+test('label: hidden drops USAGE, and spread still spaces the row', { options: { label: 'hidden', align: 'spread' } }, async ($, on) => {
   mock.store(on)
   mock.clock(on, { now: NOW })
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -181,9 +181,9 @@ test('label: hidden drops USAGE, and spread still puts a gap between the two win
     expect(await band.find({ key: 'label' })).toBeUndefined()
     await band.unmount()
   }
-  // 5H | 7D | cache | Show: still three gaps
+  // Spread still holds with no label: the row justifies, and there is no USAGE group to make
   const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
-  const gaps = (await band.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('gap-'))
-  expect(gaps.length).toBe(3)
+  expect((await band.find({ key: 'row' }))?.props.justifyContent).toBe('space-between')
+  expect(await band.find({ key: 'head' })).toBeUndefined()
   await band.unmount()
 })

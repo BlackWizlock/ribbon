@@ -32,6 +32,8 @@ const NAMES: Record<string, string> = { seven_day: '7D', five_hour: '5H', spend_
 const ORDER: Record<string, number> = { seven_day: 0, five_hour: 1 }
 const ORDER_5H_FIRST: Record<string, number> = { five_hour: 0, seven_day: 1 }
 const COLORS: Record<string, string> = { seven_day: ORANGE, five_hour: YELLOW }
+/** colors: level, by the share used, as a traffic-light status line draws it (xterm 82, 220, 203). */
+const levelColor = (used: number): string => (used >= 80 ? '#ff5f5f' : used >= 50 ? '#ffd700' : '#5fff00')
 
 const clean = (list: readonly Window[]): Window[] =>
   list
@@ -88,14 +90,15 @@ const measure = async ($: EngineInterface, lastAt: number | null, model: string 
 
 export const register: Register = (on, options) => {
   // userConfig: which figure the bars show, which window comes first, whether the USAGE label
-  // shows, whether the blocks spread across the band, and the band's text size where the surface
-  // has sizes.
+  // shows, whether the blocks spread across the band, how the windows are coloured, and the
+  // band's text size where the surface has sizes.
   const shows: 'left' | 'used' = options.usage === 'used' ? 'used' : 'left'
   const textSize: 'caption' | 'footnote' | 'body' =
     options.textSize === 'footnote' || options.textSize === 'body' ? options.textSize : 'caption'
   const order = options.first === '5h' ? ORDER_5H_FIRST : ORDER
   const spread = options.align === 'spread'
   const showLabel = options.label !== 'hidden'
+  const byLevel = options.colors === 'level'
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -191,7 +194,7 @@ export const register: Register = (on, options) => {
       return {
         left,
         figure: `${shown}% ${shows}`,
-        col: COLORS[w.kind] ?? TEXT,
+        col: byLevel ? levelColor(used) : COLORS[w.kind] ?? TEXT,
         name: NAMES[w.kind] ?? w.kind.toUpperCase(),
         d: dots(shown, cells),
         reset: fmtReset(w.resetsAt, now),
@@ -286,20 +289,23 @@ export const register: Register = (on, options) => {
       </Box>
     ) : null
     const grow = <Box key="grow" flexGrow={1} />
-    // Packed: the blocks sit at the left and the button at the right. Spread: equal gaps between
-    // the blocks, so the band fills its width; USAGE stays next to the first window.
+    // Packed: the blocks sit at the left and the button at the right. Spread: the row spaces its
+    // blocks evenly (justify, no empty spacers), so the band fills its width; USAGE stays next to
+    // the first window.
+    const justify = spread ? { justifyContent: 'space-between' as const } : {}
     const lay = (blocks: unknown[]) => {
-      const items = [...blocks, button].filter(Boolean)
-      const lead = label ? 2 : 1
-      return spread
-        ? items.flatMap((b, i) => (i < lead ? [b] : [<Box key={`gap-${i}`} flexGrow={1} />, b]))
-        : [...blocks, grow, button]
+      if (!spread) return [...blocks, grow, button]
+      const [lead, first, ...rest] = blocks
+      const head = lead
+        ? <Box key="head" flexDirection="row" flexShrink={0}>{lead}{first}</Box>
+        : first
+      return [head, ...rest, button].filter(Boolean)
     }
 
     let rows
     if (kind === 'wide') {
       rows = (
-        <Box key="row" flexDirection="row" paddingX={1} alignItems="center">
+        <Box key="row" flexDirection="row" paddingX={1} alignItems="center" {...justify}>
           {lay([
             label,
             ...usage,
@@ -315,7 +321,7 @@ export const register: Register = (on, options) => {
     } else if (kind === 'stacked') {
       // The cache becomes a third stacked block, the same shape as 7D and 5H.
       rows = (
-        <Box key="row" flexDirection="row" paddingX={1}>
+        <Box key="row" flexDirection="row" paddingX={1} {...justify}>
           {lay([
             label,
             ...usage,
