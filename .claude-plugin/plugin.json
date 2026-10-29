@@ -7,5 +7,21 @@
   "repository": "https://github.com/robonuggets/ribbon",
   "license": "MIT",
   "keywords": ["usage", "rate-limit", "prompt-cache", "cost", "status", "mod", "claude-code"],
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "usage": {
+      "type": "string",
+      "title": "Usage figure",
+      "description": "left shows how much of each window is left; used shows how much is spent, as Claude Code's own rate-limit figures do",
+      "default": "left",
+      "options": ["left", "used"]
+    },
+    "textSize": {
+      "type": "string",
+      "title": "Text size",
+      "description": "The band's text size on desktop, VS Code and mobile; the terminal has one size and ignores it. Larger sizes stack the band sooner so nothing clips",
+      "default": "caption",
+      "options": ["caption", "footnote", "body"]
+    }
+  }
 }

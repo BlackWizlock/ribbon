@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { CacheFacts, Fold, Window } from '../types'
 import {
   BG, CHIP_SMALL, EMPTY, HUE, INK, MUTED, ORANGE, ROBO_SMALL, TEXT, TTL_MIN, TTL_MS, WORD, YELLOW,
-  bandPx, cardSvg, chipSvg, costOf, familyOf, fmtIdle, kindOf, mineModel, roboSvg, usd,
+  WIDE_AT, WIDE_CACHE_AT, WIDE_FOOTNOTE_AT, bandPx, cardSvg, chipSvg, costOf, familyOf, fmtIdle, kindOf, mineModel, roboSvg, usd,
 } from './cache-art'
 import type { CacheView } from './cache-art'
 
@@ -85,7 +85,12 @@ const measure = async ($: EngineInterface, lastAt: number | null, model: string 
   }))
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // userConfig: which figure the bars show, and the band's text size where the surface has sizes.
+  const shows: 'left' | 'used' = options.usage === 'used' ? 'used' : 'left'
+  const textSize: 'caption' | 'footnote' | 'body' =
+    options.textSize === 'footnote' || options.textSize === 'body' ? options.textSize : 'caption'
+
   on('session.start', async ($, e, next) => {
     await pull($)
     $.clock.every(TICK_MS, () => $.ui.invalidate('ui.render'))
@@ -148,9 +153,10 @@ export const register: Register = on => {
     // Svg draws on desktop, mobile and VS Code; the terminal gets the text form.
     // Ask the surface, not the table: the terminal's table still lists Svg.
     const Svg = e.surface !== 'terminal' && 'Svg' in ui ? ui.Svg : null
-    // Drawing surfaces set the band in caption text, the smallest step, so the row and the cache fit
-    // where the body size would clip them; the terminal has one size and ignores it.
-    const size = Svg ? ('caption' as const) : undefined
+    // Drawing surfaces set the band in the configured text size (caption, the smallest step, by
+    // default) so the row and the cache fit where the body size would clip them; the terminal
+    // has one size and ignores it.
+    const size = Svg ? textSize : undefined
     const list = await read($, windows)
     const now = await $.clock.now()
     const view = viewOf(await read($, cache), now)
@@ -164,17 +170,24 @@ export const register: Register = on => {
     }
 
     const columns = e.props.bodyColumns ?? e.viewport?.columns ?? 100
-    const kind = kindOf(columns, view !== null && Svg === null)
+    const wideAt = view === null ? WIDE_AT
+      : !Svg || textSize === 'body' ? WIDE_CACHE_AT
+      : textSize === 'footnote' ? WIDE_FOOTNOTE_AT
+      : WIDE_AT
+    const kind = kindOf(columns, wideAt)
     const isWide = kind === 'wide'
     const cells = kind === 'tight' ? TIGHT_CELLS : CELLS
 
     const parts = (w: Window) => {
       const left = Math.max(0, Math.round((100 - w.percentUsed) * 10) / 10)
+      const used = Math.min(100, Math.max(0, Math.round(w.percentUsed * 10) / 10))
+      const shown = shows === 'used' ? used : left
       return {
         left,
+        figure: `${shown}% ${shows}`,
         col: COLORS[w.kind] ?? TEXT,
         name: NAMES[w.kind] ?? w.kind.toUpperCase(),
-        d: dots(left, cells),
+        d: dots(shown, cells),
         reset: fmtReset(w.resetsAt, now),
       }
     }
@@ -188,7 +201,7 @@ export const register: Register = on => {
           <Text size={size} color={MUTED} bold>{p.name} </Text>
           <Text size={size} color={p.col}>{p.d.on}</Text>
           <Text size={size} color={EMPTY}>{p.d.off}</Text>
-          <Text size={size} color={p.col} bold> {p.left}% left</Text>
+          <Text size={size} color={p.col} bold> {p.figure}</Text>
           {p.left < LOW_AT ? <Text size={size} color={TEXT} bold> LOW</Text> : null}
           {p.reset ? <Text size={size} color={MUTED}> · {p.reset}</Text> : null}
         </Box>
@@ -205,7 +218,7 @@ export const register: Register = on => {
             <Text size={size} color={EMPTY}>{p.d.off}</Text>
           </Box>
           <Box flexDirection="row">
-            <Text size={size} color={p.col} bold>{p.left}% left</Text>
+            <Text size={size} color={p.col} bold>{p.figure}</Text>
             {p.left < LOW_AT ? <Text size={size} color={TEXT} bold> LOW</Text> : null}
           </Box>
           {p.reset ? <Text size={size} color={MUTED}>resets {p.reset}</Text> : null}
