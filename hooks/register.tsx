@@ -30,6 +30,7 @@ const fold = atom({ plugin: 'ribbon', key: 'fold' } as const, null as Fold | nul
 
 const NAMES: Record<string, string> = { seven_day: '7D', five_hour: '5H', spend_limit: 'SPEND' }
 const ORDER: Record<string, number> = { seven_day: 0, five_hour: 1 }
+const ORDER_5H_FIRST: Record<string, number> = { five_hour: 0, seven_day: 1 }
 const COLORS: Record<string, string> = { seven_day: ORANGE, five_hour: YELLOW }
 
 const clean = (list: readonly Window[]): Window[] =>
@@ -86,10 +87,12 @@ const measure = async ($: EngineInterface, lastAt: number | null, model: string 
 }
 
 export const register: Register = (on, options) => {
-  // userConfig: which figure the bars show, and the band's text size where the surface has sizes.
+  // userConfig: which figure the bars show, which window comes first, and the band's text size
+  // where the surface has sizes.
   const shows: 'left' | 'used' = options.usage === 'used' ? 'used' : 'left'
   const textSize: 'caption' | 'footnote' | 'body' =
     options.textSize === 'footnote' || options.textSize === 'body' ? options.textSize : 'caption'
+  const order = options.first === '5h' ? ORDER_5H_FIRST : ORDER
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -157,7 +160,7 @@ export const register: Register = (on, options) => {
     // default) so the row and the cache fit where the body size would clip them; the terminal
     // has one size and ignores it.
     const size = Svg ? textSize : undefined
-    const list = await read($, windows)
+    const list = [...(await read($, windows))].sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9))
     const now = await $.clock.now()
     const view = viewOf(await read($, cache), now)
 
