@@ -93,6 +93,8 @@ Open `/config` and find **ribbon**, or run `claude plugin configure ribbon@robon
 - **Words** (`words`): `shown` (default) or `hidden`. Hidden writes just `42%` and `4h 0m`, without `left`/`used` and `resets`, which leaves more room on one row.
 - **Dots per bar** (`cells`): `10` (default), one per 10%, or `5`, one per 20%, for a shorter row.
 - **Layout** (`align`): `packed` (default) keeps the blocks together at the left, with Show at the right. `spread` spaces the blocks evenly so the band fills its width.
+- **Vertical alignment** (`valign`): `top` (default), `center` or `bottom`: where blocks of different heights (the stacked windows, the cache, Show) sit on the row.
+- **Theme** (`theme`): `fixed` (default) draws the band on its own warm dark card. `app` drops the card and takes your Claude Code theme's colours (text, subtle, claude, warning, and success / warning / error for level colours), so the band reads on a light theme too. The cache card's drawing has no background then and follows the light or dark colour scheme.
 - **Text size** (`textSize`): `caption` (default), `footnote` or `body`. Desktop, VS Code and mobile only; the terminal has one size. Larger sizes stack the band at a wider width so nothing clips.
 
 ## Good to know

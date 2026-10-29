@@ -72,6 +72,20 @@
       "default": "packed",
       "options": ["packed", "spread"]
     },
+    "theme": {
+      "type": "string",
+      "title": "Theme",
+      "description": "fixed draws the band on its own warm dark card; app drops the card and draws in your Claude Code theme's colours, so it reads on a light theme too",
+      "default": "fixed",
+      "options": ["fixed", "app"]
+    },
+    "valign": {
+      "type": "string",
+      "title": "Vertical alignment",
+      "description": "How blocks of different heights sit on the row: top, center or bottom",
+      "default": "top",
+      "options": ["top", "center", "bottom"]
+    },
     "textSize": {
       "type": "string",
       "title": "Text size",
