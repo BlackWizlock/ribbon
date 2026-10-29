@@ -147,3 +147,21 @@ test('drawing surfaces keep the cache on one row in caption text; the terminal s
   expect(await wide.find({ key: 'inline' })).toBeDefined()
   await wide.unmount()
 })
+
+test('align: spread puts an equal gap between every block after the first window', { options: { align: 'spread' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: NOW })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1000000 }, rateLimits: WINDOWS } }))
+  on('classic.SessionStart', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: WARM_IDLE, context_tokens: 770000, model: 'claude-opus-5-5' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  // USAGE, 5H | 7D | cache | Show: three gaps, each one growing, and no single spacer before Show
+  const gaps = (await band.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('gap-'))
+  expect(gaps.length).toBe(3)
+  expect(gaps.every(g => g.props.flexGrow === 1)).toBe(true)
+  expect(await band.find({ key: 'grow' })).toBeUndefined()
+  await band.unmount()
+})
