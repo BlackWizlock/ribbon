@@ -128,3 +128,45 @@ test('colors: level paints each window by the share used, like a traffic-light s
   expect(colorOf('87.5% left')).toBe('#5fff00')
   await band.unmount()
 })
+
+test('dots: even draws ten bullets of one size, the unused ones grey', { options: { dots: 'even' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const texts = await band.findAll({ type: 'Text' })
+  const text = (t: { children?: unknown }) => (t.children as unknown[] | undefined)?.join('') ?? ''
+  // 5H has 42% left: 4 used-colour bullets, then 6 grey ones; no large or small dots
+  expect(texts.some(t => text(t) === '••••')).toBe(true)
+  const off = texts.find(t => text(t) === '••••••')
+  expect(off?.props.color).toBe('#6b6966')
+  expect(texts.some(t => /^[●·]+$/.test(text(t)))).toBe(false)
+  await band.unmount()
+})
+
+test('a new session shows the last known windows until its first reply, not "waiting"', async ($, on) => {
+  mock.store(on, {
+    lastWindows: [
+      { kind: 'seven_day', percentUsed: 12.5, resetsAt: '2099-01-05T00:00:00Z' },
+      { kind: 'five_hour', percentUsed: 58, resetsAt: '2099-01-01T00:00:00Z' },
+      // already reset: dropped, its figure is stale
+      { kind: 'spend_limit', percentUsed: 90, resetsAt: '2098-12-31T00:00:00Z' },
+    ],
+  })
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 200000 }, rateLimits: [] } }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  expect(await band.find({ text: 'waiting for the first reply' })).toBeUndefined()
+  expect(await band.find({ text: '42% left' })).toBeDefined()
+  expect(await band.find({ text: '87.5% left' })).toBeDefined()
+  expect(await band.find({ text: 'SPEND' })).toBeUndefined()
+  await band.unmount()
+})

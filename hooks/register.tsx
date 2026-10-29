@@ -40,9 +40,13 @@ const clean = (list: readonly Window[]): Window[] =>
     .map(w => ({ kind: w.kind, percentUsed: w.percentUsed, resetsAt: w.resetsAt }))
     .sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9))
 
-const dots = (left: number, cells: number): { on: string; off: string } => {
+/** dots: even draws every cell as the same bullet, the unused ones grey. */
+const EVEN_OFF = '#6b6966'
+const dots = (left: number, cells: number, even = false): { on: string; off: string } => {
   const n = Math.max(0, Math.min(cells, Math.round((left / 100) * cells)))
-  return { on: '●'.repeat(n), off: '·'.repeat(cells - n) }
+  return even
+    ? { on: '•'.repeat(n), off: '•'.repeat(cells - n) }
+    : { on: '●'.repeat(n), off: '·'.repeat(cells - n) }
 }
 
 const fmtReset = (iso: string | undefined, now: number): string => {
@@ -71,9 +75,26 @@ export const viewOf = (c: CacheFacts | null, now: number): CacheView | null => {
   }
 }
 
+// The engine learns the rate limits from the first reply of a session, so a new session would
+// show "waiting" beside a cache it already knows. The last figures are kept across sessions and
+// shown until fresh ones land; a window whose reset has passed is dropped, as its figure is stale.
+const LAST = 'lastWindows'
+const remember = async ($: EngineInterface, list: Window[]): Promise<void> => {
+  if (list.length > 0) await $.store.set(LAST, list)
+}
+const recall = async ($: EngineInterface): Promise<Window[]> => {
+  const v = await $.store.get(LAST)
+  if (!Array.isArray(v)) return []
+  const now = await $.clock.now()
+  return (v as Window[]).filter(w => !w.resetsAt || Date.parse(w.resetsAt) > now)
+}
+
 const pull = async ($: EngineInterface): Promise<void> => {
   const u = await $.session.usage()
-  await update($, windows, () => clean(u.rateLimits))
+  const fresh = clean(u.rateLimits)
+  await remember($, fresh)
+  const list = fresh.length > 0 ? fresh : await recall($)
+  await update($, windows, () => list)
 }
 
 /** Fresh context figures from the engine onto the cache facts, when it has them. */
@@ -90,8 +111,8 @@ const measure = async ($: EngineInterface, lastAt: number | null, model: string 
 
 export const register: Register = (on, options) => {
   // userConfig: which figure the bars show, which window comes first, whether the USAGE label
-  // shows, whether the blocks spread across the band, how the windows are coloured, and the
-  // band's text size where the surface has sizes.
+  // shows, whether the blocks spread across the band, how the windows are coloured, how the dots
+  // are drawn, and the band's text size where the surface has sizes.
   const shows: 'left' | 'used' = options.usage === 'used' ? 'used' : 'left'
   const textSize: 'caption' | 'footnote' | 'body' =
     options.textSize === 'footnote' || options.textSize === 'body' ? options.textSize : 'caption'
@@ -99,6 +120,8 @@ export const register: Register = (on, options) => {
   const spread = options.align === 'spread'
   const showLabel = options.label !== 'hidden'
   const byLevel = options.colors === 'level'
+  const even = options.dots === 'even'
+  const offColor = even ? EVEN_OFF : EMPTY
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -108,7 +131,9 @@ export const register: Register = (on, options) => {
 
   on('session.measure', async ($, e, next) => {
     if (e.changed.includes('rateLimits')) {
-      await update($, windows, () => clean(e.rateLimits))
+      const fresh = clean(e.rateLimits)
+      await remember($, fresh)
+      if (fresh.length > 0) await update($, windows, () => fresh)
     }
     if (e.changed.includes('context') && e.context.tokens && e.context.tokens > 0) {
       const tokens = e.context.tokens
@@ -196,7 +221,7 @@ export const register: Register = (on, options) => {
         figure: `${shown}% ${shows}`,
         col: byLevel ? levelColor(used) : COLORS[w.kind] ?? TEXT,
         name: NAMES[w.kind] ?? w.kind.toUpperCase(),
-        d: dots(shown, cells),
+        d: dots(shown, cells, even),
         reset: fmtReset(w.resetsAt, now),
       }
     }
@@ -209,7 +234,7 @@ export const register: Register = (on, options) => {
         <Box key={`w-${i}`} flexDirection="row" flexShrink={0} marginRight={3}>
           <Text size={size} color={MUTED} bold>{p.name} </Text>
           <Text size={size} color={p.col}>{p.d.on}</Text>
-          <Text size={size} color={EMPTY}>{p.d.off}</Text>
+          <Text size={size} color={offColor}>{p.d.off}</Text>
           <Text size={size} color={p.col} bold> {p.figure}</Text>
           {p.left < LOW_AT ? <Text size={size} color={TEXT} bold> LOW</Text> : null}
           {p.reset ? <Text size={size} color={MUTED}> · {p.reset}</Text> : null}
@@ -224,7 +249,7 @@ export const register: Register = (on, options) => {
           <Box flexDirection="row">
             <Text size={size} color={MUTED} bold>{p.name} </Text>
             <Text size={size} color={p.col}>{p.d.on}</Text>
-            <Text size={size} color={EMPTY}>{p.d.off}</Text>
+            <Text size={size} color={offColor}>{p.d.off}</Text>
           </Box>
           <Box flexDirection="row">
             <Text size={size} color={p.col} bold>{p.figure}</Text>

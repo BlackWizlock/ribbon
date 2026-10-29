@@ -37,6 +37,13 @@
       "default": "fixed",
       "options": ["fixed", "level"]
     },
+    "dots": {
+      "type": "string",
+      "title": "Dots",
+      "description": "mixed draws used cells as large dots and the rest as small ones; even draws all ten as the same bullet, the unused ones grey",
+      "default": "mixed",
+      "options": ["mixed", "even"]
+    },
     "align": {
       "type": "string",
       "title": "Layout",
