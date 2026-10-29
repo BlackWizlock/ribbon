@@ -40,13 +40,14 @@ const clean = (list: readonly Window[]): Window[] =>
     .map(w => ({ kind: w.kind, percentUsed: w.percentUsed, resetsAt: w.resetsAt }))
     .sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9))
 
-/** dots: even draws every cell as the same bullet, the unused ones grey. */
+/** dots: even draws every cell as the same small bullet, solid as the same large dot; unused ones grey. */
 const EVEN_OFF = '#6b6966'
-const dots = (left: number, cells: number, even = false): { on: string; off: string } => {
+type Dots = 'mixed' | 'even' | 'solid'
+const GLYPHS: Record<Dots, [string, string]> = { mixed: ['●', '·'], even: ['•', '•'], solid: ['●', '●'] }
+const dots = (left: number, cells: number, style: Dots = 'mixed'): { on: string; off: string } => {
   const n = Math.max(0, Math.min(cells, Math.round((left / 100) * cells)))
-  return even
-    ? { on: '•'.repeat(n), off: '•'.repeat(cells - n) }
-    : { on: '●'.repeat(n), off: '·'.repeat(cells - n) }
+  const [on, off] = GLYPHS[style]
+  return { on: on.repeat(n), off: off.repeat(cells - n) }
 }
 
 const fmtReset = (iso: string | undefined, now: number): string => {
@@ -120,8 +121,8 @@ export const register: Register = (on, options) => {
   const spread = options.align === 'spread'
   const showLabel = options.label !== 'hidden'
   const byLevel = options.colors === 'level'
-  const even = options.dots === 'even'
-  const offColor = even ? EVEN_OFF : EMPTY
+  const dotStyle: Dots = options.dots === 'even' || options.dots === 'solid' ? options.dots : 'mixed'
+  const offColor = dotStyle === 'mixed' ? EMPTY : EVEN_OFF
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -221,7 +222,7 @@ export const register: Register = (on, options) => {
         figure: `${shown}% ${shows}`,
         col: byLevel ? levelColor(used) : COLORS[w.kind] ?? TEXT,
         name: NAMES[w.kind] ?? w.kind.toUpperCase(),
-        d: dots(shown, cells, even),
+        d: dots(shown, cells, dotStyle),
         reset: fmtReset(w.resetsAt, now),
       }
     }

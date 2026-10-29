@@ -170,3 +170,22 @@ test('a new session shows the last known windows until its first reply, not "wai
   expect(await band.find({ text: 'SPEND' })).toBeUndefined()
   await band.unmount()
 })
+
+test('dots: solid draws ten large dots, the unused ones grey', { options: { dots: 'solid' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const texts = await band.findAll({ type: 'Text' })
+  const text = (t: { children?: unknown }) => (t.children as unknown[] | undefined)?.join('') ?? ''
+  // 5H has 42% left: 4 coloured dots, then 6 grey ones of the same size
+  expect(texts.some(t => text(t) === '●●●●')).toBe(true)
+  expect(texts.find(t => text(t) === '●●●●●●')?.props.color).toBe('#6b6966')
+  expect(texts.some(t => /^[·•]+$/.test(text(t)))).toBe(false)
+  await band.unmount()
+})
