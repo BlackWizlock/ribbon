@@ -258,3 +258,38 @@ test('cells: 5 draws five dots a bar, one per 20%', { options: { cells: '5' } },
   expect(texts.some(t => /^[●·]{6,}$/.test(text(t)))).toBe(false)
   await band.unmount()
 })
+
+test('theme: app drops the dark surface and draws in the theme colours', { options: { theme: 'app', colors: 'level' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const boxes = await band.findAll({ type: 'Box' })
+  expect(boxes.some(b => b.props.backgroundColor !== undefined)).toBe(false)
+  const texts = await band.findAll({ type: 'Text' })
+  const colorOf = (figure: string) => texts.find(t => JSON.stringify(t.children).includes(figure))?.props.color
+  expect(colorOf('USAGE')).toBe('text')
+  expect(colorOf('42% left')).toBe('warning')
+  expect(colorOf('87.5% left')).toBe('success')
+  await band.unmount()
+})
+
+test('theme: fixed keeps the dark surface by default', async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const boxes = await band.findAll({ type: 'Box' })
+  expect(boxes.some(b => b.props.backgroundColor === '#24221c')).toBe(true)
+  await band.unmount()
+})

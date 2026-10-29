@@ -187,3 +187,50 @@ test('label: hidden drops USAGE, and spread still spaces the row', { options: { 
   expect(await band.find({ key: 'head' })).toBeUndefined()
   await band.unmount()
 })
+
+test('theme: app draws the card with no background, its ink following the light or dark scheme', { options: { theme: 'app' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: NOW })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1000000 }, rateLimits: WINDOWS } }))
+  on('classic.SessionStart', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: COLD_IDLE, context_tokens: 770000, model: 'claude-opus-5-5' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const card = JSON.stringify(await band.find({ key: 'card' }))
+  expect(card).not.toContain('#24221c')
+  expect(card).toContain('prefers-color-scheme: light')
+  expect(card).not.toContain('fill=\\"#e8e2d2\\"')
+  await band.unmount()
+})
+
+test('valign: center lines up the stacked blocks, the cache and the button on the row', { options: { valign: 'center' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: NOW })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1000000 }, rateLimits: WINDOWS } }))
+  on('classic.SessionStart', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: WARM_IDLE, context_tokens: 50000, model: 'claude-opus-5-5' })
+
+  for (const bodyColumns of [120, 60]) {
+    const band = await $.ui.mount({ plugin: 'ribbon', surface: 'terminal', component: 'AbovePrompt', props: { ...PROPS, bodyColumns } })
+    expect((await band.find({ key: 'row' }))?.props.alignItems).toBe('center')
+    await band.unmount()
+  }
+})
+
+test('valign stays at the top for stacked blocks by default', async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: NOW })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1000000 }, rateLimits: WINDOWS } }))
+  on('classic.SessionStart', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: WARM_IDLE, context_tokens: 50000, model: 'claude-opus-5-5' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'terminal', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 60 } })
+  expect((await band.find({ key: 'row' }))?.props.alignItems).toBe('flex-start')
+  await band.unmount()
+})

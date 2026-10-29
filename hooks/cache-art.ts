@@ -221,7 +221,23 @@ type TextOpts = { size?: number; w?: number; fill?: string; ls?: number; anchor?
 /** The gap between the row and the card, drawn inside the card. */
 const CARD_TOP = 6
 
-export const cardSvg = (v: CacheView, kind: Kind, W: number): { source: string; w: number; h: number; alt: string } => {
+// theme: app. The card draws no background, so its ink follows the light or dark colour scheme:
+// a drawing can't read the app's theme keys, only the scheme of the page it sits on.
+const SCHEME: [string, string, string][] = [
+  // dark, light, class
+  [TEXT, '#2b2925', 't'],
+  [MUTED, '#6f6a5d', 'm'],
+  [EMPTY, '#cfcabd', 'e'],
+  [LINE, '#ddd8cc', 'l'],
+]
+const schemed = (body: string): string => {
+  let s = body
+  for (const [dark, , c] of SCHEME) s = s.split(`fill="${dark}"`).join(`class="i${c}"`)
+  const fills = (k: 0 | 1) => SCHEME.map(r => `.i${r[2]}{fill:${r[k]}}`).join('')
+  return `<style>${fills(0)}@media (prefers-color-scheme: light){${fills(1)}}</style>` + s
+}
+
+export const cardSvg = (v: CacheView, kind: Kind, W: number, clear = false): { source: string; w: number; h: number; alt: string } => {
   const mode = v.mode
   const cold = mode === 'cold'
   const HUEM = HUE[mode]
@@ -337,7 +353,8 @@ export const cardSvg = (v: CacheView, kind: Kind, W: number): { source: string; 
       zoneCost(13, 182, (W - 26) / 4, { compact: true })
   }
   const h = H + CARD_TOP
-  const body = `<rect width="${W}" height="${h}" fill="${BG}"/><g transform="translate(0 ${CARD_TOP})">` + hline(0) + g + '</g>'
+  const drawn = `<g transform="translate(0 ${CARD_TOP})">` + hline(0) + g + '</g>'
+  const body = clear ? schemed(drawn) : `<rect width="${W}" height="${h}" fill="${BG}"/>` + drawn
   const alt = cold
     ? `Cache cold. Idle ${v.idle}. Next message re-caches ${tok(v.tokens)} tokens.`
     : `Cache warm. Goes cold in ${Math.max(0, TTL_MIN - v.idleMin)} minutes. ${tok(v.tokens)} tokens cached.`

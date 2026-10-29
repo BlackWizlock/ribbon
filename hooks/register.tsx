@@ -32,9 +32,29 @@ const fold = atom({ plugin: 'ribbon', key: 'fold' } as const, null as Fold | nul
 const NAMES: Record<string, string> = { seven_day: '7D', five_hour: '5H', spend_limit: 'SPEND', context: 'CTX' }
 const ORDER: Record<string, number> = { seven_day: 0, five_hour: 1 }
 const ORDER_5H_FIRST: Record<string, number> = { five_hour: 0, seven_day: 1 }
-const COLORS: Record<string, string> = { seven_day: ORANGE, five_hour: YELLOW, context: TEXT }
-/** colors: level, by the share used, as a traffic-light status line draws it (xterm 82, 220, 203). */
-const levelColor = (used: number): string => (used >= 80 ? '#ff5f5f' : used >= 50 ? '#ffd700' : '#5fff00')
+
+/**
+ * The band's colours. fixed is its own warm dark card; app has no surface of its own and takes
+ * the person's theme colours by key, so it reads on a light theme as on a dark one.
+ */
+type Ink = {
+  bg?: string; text: string; muted: string; empty: string; off: string
+  windows: Record<string, string>
+  /** colors: level, by the share used: under 50%, from 50%, from 80%. */
+  level: [string, string, string]
+}
+const FIXED: Ink = {
+  bg: BG, text: TEXT, muted: MUTED, empty: EMPTY, off: '#6b6966',
+  windows: { seven_day: ORANGE, five_hour: YELLOW, context: TEXT },
+  // As a traffic-light status line draws it (xterm 82, 220, 203).
+  level: ['#5fff00', '#ffd700', '#ff5f5f'],
+}
+const APP: Ink = {
+  text: 'text', muted: 'subtle', empty: 'inactive', off: 'inactive',
+  windows: { seven_day: 'claude', five_hour: 'warning', context: 'text' },
+  level: ['success', 'warning', 'error'],
+}
+const levelColor = (used: number, ink: Ink): string => ink.level[used >= 80 ? 2 : used >= 50 ? 1 : 0]
 
 const clean = (list: readonly Window[]): Window[] =>
   list
@@ -42,7 +62,6 @@ const clean = (list: readonly Window[]): Window[] =>
     .sort((a, b) => (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9))
 
 /** dots: even draws every cell as the same small bullet, solid as the same large dot; unused ones grey. */
-const EVEN_OFF = '#6b6966'
 type Dots = 'mixed' | 'even' | 'solid'
 const GLYPHS: Record<Dots, [string, string]> = { mixed: ['●', '·'], even: ['•', '•'], solid: ['●', '●'] }
 const dots = (left: number, cells: number, style: Dots = 'mixed'): { on: string; off: string } => {
@@ -123,7 +142,13 @@ export const register: Register = (on, options) => {
   const showLabel = options.label !== 'hidden'
   const byLevel = options.colors === 'level'
   const dotStyle: Dots = options.dots === 'even' || options.dots === 'solid' ? options.dots : 'mixed'
-  const offColor = dotStyle === 'mixed' ? EMPTY : EVEN_OFF
+  // theme: fixed draws the band's own dark card; app follows the person's theme.
+  const app = options.theme === 'app'
+  const ink = app ? APP : FIXED
+  // valign: how blocks of different heights sit on the row (the stacked windows, the cache, the
+  // Show button). top keeps them at the top, as before; center and bottom line them up there.
+  const valign = options.valign === 'center' ? 'center' : options.valign === 'bottom' ? 'flex-end' : null
+  const offColor = dotStyle === 'mixed' ? ink.empty : ink.off
   const showCtx = options.context === 'shown'
   const words = options.words !== 'hidden'
   // cells: 5 steps of 20% instead of 10 of 10%, for a shorter row.
@@ -214,8 +239,8 @@ export const register: Register = (on, options) => {
 
     if (list.length === 0 && !view) {
       return (
-        <Box backgroundColor={BG} paddingX={1}>
-          <Text size={size} color={MUTED}>USAGE · waiting for the first reply</Text>
+        <Box backgroundColor={ink.bg} paddingX={1}>
+          <Text size={size} color={ink.muted}>USAGE · waiting for the first reply</Text>
         </Box>
       )
     }
@@ -243,7 +268,7 @@ export const register: Register = (on, options) => {
       return {
         left,
         figure: words ? `${shown}% ${shows}` : `${shown}%`,
-        col: byLevel ? levelColor(used) : COLORS[w.kind] ?? TEXT,
+        col: byLevel ? levelColor(used, ink) : ink.windows[w.kind] ?? ink.text,
         name: NAMES[w.kind] ?? w.kind.toUpperCase(),
         d: dots(shown, cells, dotStyle),
         reset: fmtReset(w.resetsAt, now),
@@ -256,12 +281,12 @@ export const register: Register = (on, options) => {
       const p = parts(w)
       return (
         <Box key={`w-${i}`} flexDirection="row" flexShrink={0} marginRight={3}>
-          <Text size={size} color={MUTED} bold>{p.name} </Text>
+          <Text size={size} color={ink.muted} bold>{p.name} </Text>
           <Text size={size} color={p.col}>{p.d.on}</Text>
           <Text size={size} color={offColor}>{p.d.off}</Text>
           <Text size={size} color={p.col} bold> {p.figure}</Text>
-          {p.left < LOW_AT ? <Text size={size} color={TEXT} bold> LOW</Text> : null}
-          {p.reset ? <Text size={size} color={MUTED}> · {p.reset}</Text> : null}
+          {p.left < LOW_AT ? <Text size={size} color={ink.text} bold> LOW</Text> : null}
+          {p.reset ? <Text size={size} color={ink.muted}> · {p.reset}</Text> : null}
         </Box>
       )
     }
@@ -271,22 +296,22 @@ export const register: Register = (on, options) => {
       return (
         <Box key={`w-${i}`} flexDirection="column" flexShrink={0} marginRight={3}>
           <Box flexDirection="row">
-            <Text size={size} color={MUTED} bold>{p.name} </Text>
+            <Text size={size} color={ink.muted} bold>{p.name} </Text>
             <Text size={size} color={p.col}>{p.d.on}</Text>
             <Text size={size} color={offColor}>{p.d.off}</Text>
           </Box>
           <Box flexDirection="row">
             <Text size={size} color={p.col} bold>{p.figure}</Text>
-            {p.left < LOW_AT ? <Text size={size} color={TEXT} bold> LOW</Text> : null}
+            {p.left < LOW_AT ? <Text size={size} color={ink.text} bold> LOW</Text> : null}
           </Box>
-          {p.reset ? <Text size={size} color={MUTED}>{words ? `resets ${p.reset}` : p.reset}</Text> : null}
+          {p.reset ? <Text size={size} color={ink.muted}>{words ? `resets ${p.reset}` : p.reset}</Text> : null}
         </Box>
       )
     }
 
     const label = showLabel ? (
       <Box key="label" flexShrink={0} marginRight={isWide ? 2 : 3}>
-        <Text size={size} color={TEXT} bold>USAGE</Text>
+        <Text size={size} color={ink.text} bold>USAGE</Text>
       </Box>
     ) : null
     const draw = isWide ? wide : stacked
@@ -294,13 +319,13 @@ export const register: Register = (on, options) => {
       ...ctxRow.map((w, i) => draw(w, i)),
       ...(list.length > 0
         ? list.map((w, i) => draw(w, i + ctxRow.length))
-        : [<Box key="wait" flexShrink={0} marginRight={3}><Text size={size} color={MUTED}>waiting for the first reply</Text></Box>]),
+        : [<Box key="wait" flexShrink={0} marginRight={3}><Text size={size} color={ink.muted}>waiting for the first reply</Text></Box>]),
     ]
 
     // Before the first reply there is no cache to show: today's band, as it was.
     if (!view) {
       return (
-        <Box flexDirection="row" backgroundColor={BG} paddingX={1}>
+        <Box flexDirection="row" backgroundColor={ink.bg} paddingX={1} {...(valign ? { alignItems: valign } : {})}>
           {label}
           {usage}
         </Box>
@@ -331,8 +356,8 @@ export const register: Register = (on, options) => {
     const summary = cold
       ? [
           <Text size={size} key="idle" color={hue} bold>{` ${view.idle}`}</Text>,
-          mine ? <Text size={size} key="dot" color={MUTED}> · </Text> : null,
-          mine ? <Text size={size} key="cost" color={TEXT} bold>{usd(costOf(mine, mode, view.tokens))}</Text> : null,
+          mine ? <Text size={size} key="dot" color={ink.muted}> · </Text> : null,
+          mine ? <Text size={size} key="cost" color={ink.text} bold>{usd(costOf(mine, mode, view.tokens))}</Text> : null,
         ]
       : [<Text size={size} key="left" color={hue} bold>{` ${Math.max(0, TTL_MIN - view.idleMin)}m left`}</Text>]
 
@@ -346,6 +371,7 @@ export const register: Register = (on, options) => {
     // blocks evenly (justify, no empty spacers), so the band fills its width; USAGE stays next to
     // the first window.
     const justify = spread ? { justifyContent: 'space-between' as const } : {}
+    const align = { alignItems: valign ?? 'flex-start' }
     const lay = (blocks: unknown[]) => {
       if (!spread) return [...blocks, grow, button]
       const [lead, first, ...rest] = blocks
@@ -358,7 +384,7 @@ export const register: Register = (on, options) => {
     let rows
     if (kind === 'wide') {
       rows = (
-        <Box key="row" flexDirection="row" paddingX={1} alignItems="center" {...justify}>
+        <Box key="row" flexDirection="row" paddingX={1} alignItems={valign ?? 'center'} {...justify}>
           {lay([
             label,
             ...usage,
@@ -374,7 +400,7 @@ export const register: Register = (on, options) => {
     } else if (kind === 'stacked') {
       // The cache becomes a third stacked block, the same shape as 7D and 5H.
       rows = (
-        <Box key="row" flexDirection="row" paddingX={1} {...justify}>
+        <Box key="row" flexDirection="row" paddingX={1} {...align} {...justify}>
           {lay([
             label,
             ...usage,
@@ -384,8 +410,8 @@ export const register: Register = (on, options) => {
                 <Text size={size} color={hue} bold>{cold ? `${view.idle} idle` : `${Math.max(0, TTL_MIN - view.idleMin)}m left`}</Text>
                 {mine ? (
                   <Box flexDirection="row">
-                    <Text size={size} color={TEXT} bold>{usd(costOf(mine, mode, view.tokens))}</Text>
-                    <Text size={size} color={MUTED}> next</Text>
+                    <Text size={size} color={ink.text} bold>{usd(costOf(mine, mode, view.tokens))}</Text>
+                    <Text size={size} color={ink.muted}> next</Text>
                   </Box>
                 ) : null}
               </Box>
@@ -396,7 +422,7 @@ export const register: Register = (on, options) => {
     } else {
       // Narrow: the cache gets its own row under the usage blocks.
       rows = [
-        <Box key="row" flexDirection="row" paddingX={1}>
+        <Box key="row" flexDirection="row" paddingX={1} {...align}>
           {label}
           {usage}
         </Box>,
@@ -411,7 +437,7 @@ export const register: Register = (on, options) => {
 
     let card = null
     if (open && Svg) {
-      const c = cardSvg(view, kind, bandPx(columns))
+      const c = cardSvg(view, kind, bandPx(columns), app)
       card = (
         <Box key="card" flexDirection="row">
           <Svg source={c.source} alt={c.alt} width={c.w} height={c.h} isInteractive={kind !== 'tight'} />
@@ -420,7 +446,7 @@ export const register: Register = (on, options) => {
     }
 
     return (
-      <Box flexDirection="column" backgroundColor={BG}>
+      <Box flexDirection="column" backgroundColor={ink.bg}>
         {rows}
         {card}
       </Box>
