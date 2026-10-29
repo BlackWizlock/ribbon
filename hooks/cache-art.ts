@@ -116,6 +116,8 @@ const CHIP: Record<string, { w: number; h: number }> = {
   'WARM@11': { w: 54, h: 18 },
   'COLD@11': { w: 50, h: 18 },
   'YOU@10': { w: 36, h: 17 },
+  'WARM@10': { w: 49, h: 17 },
+  'COLD@10': { w: 45, h: 17 },
 }
 
 export const chipShapes = (x: number, y: number, word: string, fill: string, size: number, ls: number): { w: number; h: number; svg: string } => {
@@ -209,9 +211,9 @@ export const roboShapes = (x: number, y: number, size: number, mode: Mode): stri
 /** Robo beside the chip in the band's row. */
 export const ROBO_SIZE = 26
 /** Robo beside the caption-size text of the band's row. */
-export const ROBO_SMALL = 18
+export const ROBO_SMALL = 16
 /** The chip's font size beside the caption-size text of the band's row. */
-export const CHIP_SMALL = 11
+export const CHIP_SMALL = 10
 export const roboSvg = (mode: Mode, size = ROBO_SIZE): string => svgDoc(size, size, roboShapes(0, 0, size, mode), false)
 
 // ---------- The card, laid out for the band's width ----------
