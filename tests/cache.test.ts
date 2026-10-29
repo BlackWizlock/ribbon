@@ -165,3 +165,25 @@ test('align: spread puts an equal gap between every block after the first window
   expect(await band.find({ key: 'grow' })).toBeUndefined()
   await band.unmount()
 })
+
+test('label: hidden drops USAGE, and spread still puts a gap between the two windows', { options: { label: 'hidden', align: 'spread' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: NOW })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1000000 }, rateLimits: WINDOWS } }))
+  on('classic.SessionStart', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await $.classic.SessionStart({ source: 'resume', seconds_since_last_response: WARM_IDLE, context_tokens: 770000, model: 'claude-opus-5-5' })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const band = await $.ui.mount({ plugin: 'ribbon', surface, component: 'AbovePrompt', props: PROPS })
+    expect(await band.find({ text: 'USAGE' })).toBeUndefined()
+    expect(await band.find({ key: 'label' })).toBeUndefined()
+    await band.unmount()
+  }
+  // 5H | 7D | cache | Show: still three gaps
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const gaps = (await band.findAll({ type: 'Box' })).filter(b => String(b.key ?? '').startsWith('gap-'))
+  expect(gaps.length).toBe(3)
+  await band.unmount()
+})
