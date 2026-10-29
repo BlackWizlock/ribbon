@@ -227,3 +227,23 @@ test('context and branch stay off by default', async ($, on) => {
   expect(await band.find({ key: 'branch' })).toBeUndefined()
   await band.unmount()
 })
+
+test('words: hidden drops left/used and resets, in both layouts', { options: { words: 'hidden' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  for (const bodyColumns of [100, 60]) {
+    const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns } })
+    const all = JSON.stringify(await band.find({ type: 'Box' }))
+    expect(all).toContain('42%')
+    expect(all).toContain('2h 0m')
+    expect(all).not.toContain('left')
+    expect(all).not.toContain('resets')
+    await band.unmount()
+  }
+})

@@ -58,6 +58,13 @@
       "default": "hidden",
       "options": ["hidden", "shown"]
     },
+    "words": {
+      "type": "string",
+      "title": "Words",
+      "description": "shown writes 42% left and resets 4h 0m; hidden writes just 42% and 4h 0m, which leaves more room on one row",
+      "default": "shown",
+      "options": ["shown", "hidden"]
+    },
     "align": {
       "type": "string",
       "title": "Layout",
