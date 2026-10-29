@@ -58,3 +58,38 @@ test('in a narrow band each window stacks, with percent left and reset time on t
   expect(await band.find({ text: 'resets 2h 0m' })).toBeDefined()
   await band.unmount()
 })
+
+test('usage: used shows the spent share of each window and fills the bar with it', { options: { usage: 'used' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const band = await $.ui.mount({ plugin: 'ribbon', surface, component: 'AbovePrompt', props: PROPS })
+    expect(await band.find({ text: '58% used' })).toBeDefined()
+    expect(await band.find({ text: '12.5% used' })).toBeDefined()
+    expect(await band.find({ text: '42% left' })).toBeUndefined()
+    // 5H is 58% used: 6 of 10 dots on
+    expect(await band.find({ text: '●●●●●●' })).toBeDefined()
+    await band.unmount()
+  }
+})
+
+test('textSize sets the band text on drawing surfaces', { options: { textSize: 'body' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const sizes = new Set((await band.findAll({ type: 'Text' })).map(t => t.props.size))
+  expect([...sizes]).toEqual(['body'])
+  await band.unmount()
+})

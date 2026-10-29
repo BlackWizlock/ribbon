@@ -29,17 +29,18 @@ export const TTL_MS = TTL_MIN * 60 * 1000
 /** One row needs about 78 columns for two windows; under that, each window stacks. */
 export const WIDE_AT = 78
 /**
- * In the terminal, with the cache shown, the same row also carries the chip, the
- * minutes left or the idle time and price: about 30 columns more. The terminal
- * has one text size, so the row needs the room. Drawing surfaces shrink the
- * band's text and drawings instead and keep WIDE_AT.
+ * With the cache shown the same row also carries the chip, the minutes left or
+ * the idle time and price, and the Show button: about 30 columns more at the
+ * terminal's (or the body text's) size. Caption text keeps WIDE_AT; footnote
+ * text sits between the two.
  */
 export const WIDE_CACHE_AT = 112
+export const WIDE_FOOTNOTE_AT = 96
 /** Under this the dot bars shrink and the cache gets its own row. */
 export const TIGHT_AT = 42
 
-export const kindOf = (columns: number, withCache = false): Kind =>
-  columns >= (withCache ? WIDE_CACHE_AT : WIDE_AT) ? 'wide' : columns >= TIGHT_AT ? 'stacked' : 'tight'
+export const kindOf = (columns: number, wideAt = WIDE_AT): Kind =>
+  columns >= wideAt ? 'wide' : columns >= TIGHT_AT ? 'stacked' : 'tight'
 
 /**
  * The band's width in CSS pixels for a column count: the engine keeps 5 cells
