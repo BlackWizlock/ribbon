@@ -40,9 +40,9 @@
     "dots": {
       "type": "string",
       "title": "Dots",
-      "description": "mixed draws used cells as large dots and the rest as small ones; even draws all ten as the same bullet, the unused ones grey",
+      "description": "mixed draws used cells as large dots and the rest as small ones; even draws all ten as the same small bullet, solid as the same large dot, the unused ones grey",
       "default": "mixed",
-      "options": ["mixed", "even"]
+      "options": ["mixed", "even", "solid"]
     },
     "align": {
       "type": "string",
