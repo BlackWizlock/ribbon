@@ -51,13 +51,6 @@
       "default": "hidden",
       "options": ["hidden", "shown"]
     },
-    "branch": {
-      "type": "string",
-      "title": "Git branch",
-      "description": "shown adds the session's git branch after the windows, with * when the working tree has changes",
-      "default": "hidden",
-      "options": ["hidden", "shown"]
-    },
     "words": {
       "type": "string",
       "title": "Words",

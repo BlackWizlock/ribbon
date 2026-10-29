@@ -25,7 +25,7 @@ const TIGHT_CELLS = 6
 const TICK_MS = 30_000
 
 const windows = atom({ plugin: 'ribbon', key: 'windows' } as const, [] as Window[])
-const meta = atom({ plugin: 'ribbon', key: 'meta' } as const, { ctx: null, branch: null } as Meta)
+const meta = atom({ plugin: 'ribbon', key: 'meta' } as const, { ctx: null } as Meta)
 const cache = atom({ plugin: 'ribbon', key: 'cache' } as const, null as CacheFacts | null)
 const fold = atom({ plugin: 'ribbon', key: 'fold' } as const, null as Fold | null)
 
@@ -91,25 +91,6 @@ const recall = async ($: EngineInterface): Promise<Window[]> => {
   return (v as Window[]).filter(w => !w.resetsAt || Date.parse(w.resetsAt) > now)
 }
 
-/** The branch as a status line shows it: the short commit when detached, `*` when the tree has changes. */
-const gitBranch = async ($: EngineInterface): Promise<string | null> => {
-  try {
-    const head = await $.process.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], { timeoutMs: 5000 })
-    if (head.exitCode !== 0) return null
-    let name = head.stdout.trim()
-    if (name === 'HEAD') name = (await $.process.run(['git', 'rev-parse', '--short', 'HEAD'], { timeoutMs: 5000 })).stdout.trim()
-    const diff = await $.process.run(['git', 'diff', '--quiet'], { timeoutMs: 5000 })
-    return name ? `${name}${diff.exitCode === 0 ? '' : '*'}` : null
-  } catch {
-    return null
-  }
-}
-
-const refreshBranch = async ($: EngineInterface): Promise<void> => {
-  const branch = await gitBranch($)
-  await update($, meta, m => (m.branch === branch ? m : { ...m, branch }))
-}
-
 const pull = async ($: EngineInterface): Promise<void> => {
   const u = await $.session.usage()
   const fresh = clean(u.rateLimits)
@@ -144,7 +125,6 @@ export const register: Register = (on, options) => {
   const dotStyle: Dots = options.dots === 'even' || options.dots === 'solid' ? options.dots : 'mixed'
   const offColor = dotStyle === 'mixed' ? EMPTY : EVEN_OFF
   const showCtx = options.context === 'shown'
-  const showBranch = options.branch === 'shown'
   const words = options.words !== 'hidden'
 
   on('session.start', async ($, e, next) => {
@@ -153,11 +133,7 @@ export const register: Register = (on, options) => {
       const ctx = (await $.session.usage()).context.percent ?? null
       await update($, meta, m => ({ ...m, ctx }))
     }
-    if (showBranch) await refreshBranch($)
-    $.clock.every(TICK_MS, async () => {
-      if (showBranch) await refreshBranch($)
-      $.ui.invalidate('ui.render')
-    })
+    $.clock.every(TICK_MS, () => $.ui.invalidate('ui.render'))
     return next(e)
   })
 
@@ -233,7 +209,6 @@ export const register: Register = (on, options) => {
     const m = await read($, meta)
     // Context reads as one more window, first, as a status line puts it; it has no reset.
     const ctxRow: Window[] = showCtx && m.ctx !== null ? [{ kind: 'context', percentUsed: m.ctx }] : []
-    const branch = showBranch ? m.branch : null
 
     if (list.length === 0 && !view) {
       return (
@@ -253,7 +228,7 @@ export const register: Register = (on, options) => {
     // takes fewer columns per character, so the extra blocks weigh less there.
     const scale = !Svg ? 1 : textSize === 'caption' ? 0.8 : textSize === 'footnote' ? 0.9 : 1
     const extra = Math.round(scale * (
-      (ctxRow.length > 0 ? (words ? 20 : 15) : 0) + (branch ? branch.length + 5 : 0) - (words ? 0 : 10)
+      (ctxRow.length > 0 ? (words ? 20 : 15) : 0) - (words ? 0 : 10)
     ))
     const kind = kindOf(columns, wideAt + extra)
     const isWide = kind === 'wide'
@@ -318,14 +293,6 @@ export const register: Register = (on, options) => {
       ...(list.length > 0
         ? list.map((w, i) => draw(w, i + ctxRow.length))
         : [<Box key="wait" flexShrink={0} marginRight={3}><Text size={size} color={MUTED}>waiting for the first reply</Text></Box>]),
-      ...(branch
-        ? [
-            <Box key="branch" flexDirection="row" flexShrink={0} marginRight={3}>
-              <Text size={size} color={MUTED}>⎇ </Text>
-              <Text size={size} color={TEXT}>{branch}</Text>
-            </Box>,
-          ]
-        : []),
     ]
 
     // Before the first reply there is no cache to show: today's band, as it was.
