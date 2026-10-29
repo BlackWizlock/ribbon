@@ -145,6 +145,7 @@ export const register: Register = (on, options) => {
   const offColor = dotStyle === 'mixed' ? EMPTY : EVEN_OFF
   const showCtx = options.context === 'shown'
   const showBranch = options.branch === 'shown'
+  const words = options.words !== 'hidden'
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -248,7 +249,12 @@ export const register: Register = (on, options) => {
       : textSize === 'footnote' ? WIDE_FOOTNOTE_AT
       : WIDE_AT
     // Each extra block asks for its columns before the band keeps one row.
-    const extra = (ctxRow.length > 0 ? 20 : 0) + (branch ? branch.length + 5 : 0)
+    // Without the words each window is five columns shorter. Smaller text on a drawing surface
+    // takes fewer columns per character, so the extra blocks weigh less there.
+    const scale = !Svg ? 1 : textSize === 'caption' ? 0.8 : textSize === 'footnote' ? 0.9 : 1
+    const extra = Math.round(scale * (
+      (ctxRow.length > 0 ? (words ? 20 : 15) : 0) + (branch ? branch.length + 5 : 0) - (words ? 0 : 10)
+    ))
     const kind = kindOf(columns, wideAt + extra)
     const isWide = kind === 'wide'
     const cells = kind === 'tight' ? TIGHT_CELLS : CELLS
@@ -259,7 +265,7 @@ export const register: Register = (on, options) => {
       const shown = shows === 'used' ? used : left
       return {
         left,
-        figure: `${shown}% ${shows}`,
+        figure: words ? `${shown}% ${shows}` : `${shown}%`,
         col: byLevel ? levelColor(used) : COLORS[w.kind] ?? TEXT,
         name: NAMES[w.kind] ?? w.kind.toUpperCase(),
         d: dots(shown, cells, dotStyle),
@@ -296,7 +302,7 @@ export const register: Register = (on, options) => {
             <Text size={size} color={p.col} bold>{p.figure}</Text>
             {p.left < LOW_AT ? <Text size={size} color={TEXT} bold> LOW</Text> : null}
           </Box>
-          {p.reset ? <Text size={size} color={MUTED}>resets {p.reset}</Text> : null}
+          {p.reset ? <Text size={size} color={MUTED}>{words ? `resets ${p.reset}` : p.reset}</Text> : null}
         </Box>
       )
     }
