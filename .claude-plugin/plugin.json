@@ -23,6 +23,13 @@
       "default": "7d",
       "options": ["7d", "5h"]
     },
+    "align": {
+      "type": "string",
+      "title": "Layout",
+      "description": "packed keeps the blocks together at the left; spread puts equal gaps between them so the band fills its width",
+      "default": "packed",
+      "options": ["packed", "spread"]
+    },
     "textSize": {
       "type": "string",
       "title": "Text size",

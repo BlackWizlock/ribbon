@@ -87,12 +87,13 @@ const measure = async ($: EngineInterface, lastAt: number | null, model: string 
 }
 
 export const register: Register = (on, options) => {
-  // userConfig: which figure the bars show, which window comes first, and the band's text size
-  // where the surface has sizes.
+  // userConfig: which figure the bars show, which window comes first, whether the blocks spread
+  // across the band, and the band's text size where the surface has sizes.
   const shows: 'left' | 'used' = options.usage === 'used' ? 'used' : 'left'
   const textSize: 'caption' | 'footnote' | 'body' =
     options.textSize === 'footnote' || options.textSize === 'body' ? options.textSize : 'caption'
   const order = options.first === '5h' ? ORDER_5H_FIRST : ORDER
+  const spread = options.align === 'spread'
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -283,43 +284,51 @@ export const register: Register = (on, options) => {
       </Box>
     ) : null
     const grow = <Box key="grow" flexGrow={1} />
+    // Packed: the blocks sit at the left and the button at the right. Spread: equal gaps between
+    // the blocks, so the band fills its width; USAGE stays next to the first window.
+    const lay = (blocks: unknown[]) => {
+      const items = [...blocks, button].filter(Boolean)
+      return spread
+        ? items.flatMap((b, i) => (i < 2 ? [b] : [<Box key={`gap-${i}`} flexGrow={1} />, b]))
+        : [...blocks, grow, button]
+    }
 
     let rows
     if (kind === 'wide') {
       rows = (
         <Box key="row" flexDirection="row" paddingX={1} alignItems="center">
-          {label}
-          {usage}
-          {open ? null : (
-            <Box key="inline" flexDirection="row" flexShrink={0} marginRight={2} alignItems="center">
-              {badge}
-              {summary}
-            </Box>
-          )}
-          {grow}
-          {button}
+          {lay([
+            label,
+            ...usage,
+            open ? null : (
+              <Box key="inline" flexDirection="row" flexShrink={0} marginRight={2} alignItems="center">
+                {badge}
+                {summary}
+              </Box>
+            ),
+          ])}
         </Box>
       )
     } else if (kind === 'stacked') {
       // The cache becomes a third stacked block, the same shape as 7D and 5H.
       rows = (
         <Box key="row" flexDirection="row" paddingX={1}>
-          {label}
-          {usage}
-          {open ? null : (
-            <Box key="block" flexDirection="column" flexShrink={0} marginRight={2}>
-              <Box flexDirection="row" alignItems="center">{badge}</Box>
-              <Text size={size} color={hue} bold>{cold ? `${view.idle} idle` : `${Math.max(0, TTL_MIN - view.idleMin)}m left`}</Text>
-              {mine ? (
-                <Box flexDirection="row">
-                  <Text size={size} color={TEXT} bold>{usd(costOf(mine, mode, view.tokens))}</Text>
-                  <Text size={size} color={MUTED}> next</Text>
-                </Box>
-              ) : null}
-            </Box>
-          )}
-          {grow}
-          {button}
+          {lay([
+            label,
+            ...usage,
+            open ? null : (
+              <Box key="block" flexDirection="column" flexShrink={0} marginRight={2}>
+                <Box flexDirection="row" alignItems="center">{badge}</Box>
+                <Text size={size} color={hue} bold>{cold ? `${view.idle} idle` : `${Math.max(0, TTL_MIN - view.idleMin)}m left`}</Text>
+                {mine ? (
+                  <Box flexDirection="row">
+                    <Text size={size} color={TEXT} bold>{usd(costOf(mine, mode, view.tokens))}</Text>
+                    <Text size={size} color={MUTED}> next</Text>
+                  </Box>
+                ) : null}
+              </Box>
+            ),
+          ])}
         </Box>
       )
     } else {
