@@ -189,3 +189,41 @@ test('dots: solid draws ten large dots, the unused ones grey', { options: { dots
   expect(texts.some(t => /^[·•]+$/.test(text(t)))).toBe(false)
   await band.unmount()
 })
+
+test('context and branch: CTX comes first, the branch after the windows', { options: { context: 'shown', branch: 'shown', usage: 'used' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000, tokens: 28000, percent: 14 }, rateLimits: WINDOWS },
+  }))
+  on('process.run', ($, e) => {
+    const a = e.argv.join(' ')
+    if (a === 'git rev-parse --abbrev-ref HEAD') return { value: { exitCode: 0, stdout: 'main\n', stderr: '' } }
+    if (a === 'git diff --quiet') return { value: { exitCode: 1, stdout: '', stderr: '' } }
+    return { value: { exitCode: 1, stdout: '', stderr: '' } }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: { ...PROPS, bodyColumns: 160 } })
+  expect(await band.find({ text: '14% used' })).toBeDefined()
+  expect(await band.find({ text: 'main*' })).toBeDefined()
+  const all = JSON.stringify(await band.find({ type: 'Box' }))
+  expect(all.indexOf('CTX')).toBeLessThan(all.indexOf('7D'))
+  expect(all.indexOf('5H')).toBeLessThan(all.indexOf('main*'))
+  await band.unmount()
+})
+
+test('context and branch stay off by default', async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000, tokens: 28000, percent: 14 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  expect(await band.find({ text: 'CTX' })).toBeUndefined()
+  expect(await band.find({ key: 'branch' })).toBeUndefined()
+  await band.unmount()
+})
