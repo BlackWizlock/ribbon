@@ -16,6 +16,13 @@
       "default": "left",
       "options": ["left", "used"]
     },
+    "first": {
+      "type": "string",
+      "title": "First window",
+      "description": "Which usage window the band shows first: 7d (the weekly one) or 5h (the 5-hour one)",
+      "default": "7d",
+      "options": ["7d", "5h"]
+    },
     "textSize": {
       "type": "string",
       "title": "Text size",

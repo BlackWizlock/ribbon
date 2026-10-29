@@ -93,3 +93,20 @@ test('textSize sets the band text on drawing surfaces', { options: { textSize: '
   expect([...sizes]).toEqual(['body'])
   await band.unmount()
 })
+
+test('first: 5h draws the 5-hour window before the 7-day one', { options: { first: '5h' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const band = await $.ui.mount({ plugin: 'ribbon', surface, component: 'AbovePrompt', props: PROPS })
+    const all = JSON.stringify(await band.find({ type: 'Box' }))
+    expect(all.indexOf('5H')).toBeLessThan(all.indexOf('7D'))
+    await band.unmount()
+  }
+})

@@ -82,9 +82,10 @@ The card shows how long you've been idle, how many tokens are in the cache, and 
 
 ## Settings
 
-Open `/config` and find **ribbon**, or set them in `settings.json` under `pluginConfigs.ribbon.options`.
+Open `/config` and find **ribbon**, or run `claude plugin configure ribbon@robonuggets`.
 
 - **Usage figure** (`usage`): `left` (default) shows how much of each window is left. `used` shows how much is spent, the way Claude Code's own rate-limit figures count it; the dot bar then fills with what is used. **LOW** still shows when less than 15% is left.
+- **First window** (`first`): `7d` (default) or `5h`. Which window the band shows first.
 - **Text size** (`textSize`): `caption` (default), `footnote` or `body`. Desktop, VS Code and mobile only; the terminal has one size. Larger sizes stack the band at a wider width so nothing clips.
 
 ## Good to know
