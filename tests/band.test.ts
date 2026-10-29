@@ -238,3 +238,23 @@ test('words: hidden drops left/used and resets, in both layouts', { options: { w
     await band.unmount()
   }
 })
+
+test('cells: 5 draws five dots a bar, one per 20%', { options: { cells: '5' } }, async ($, on) => {
+  mock.store(on)
+  mock.clock(on, { now: Date.parse('2098-12-31T22:00:00Z') })
+  on('session.start', ($, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({
+    value: { startedAt: 0, context: { window: 200000 }, rateLimits: WINDOWS },
+  }))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+
+  const band = await $.ui.mount({ plugin: 'ribbon', surface: 'desktop', component: 'AbovePrompt', props: PROPS })
+  const texts = await band.findAll({ type: 'Text' })
+  const text = (t: { children?: unknown }) => (t.children as unknown[] | undefined)?.join('') ?? ''
+  // 5H 42% left: 2 of 5 on; 7D 87.5% left: 4 of 5 on (4.375 rounds down)
+  expect(texts.some(t => text(t) === '●●')).toBe(true)
+  expect(texts.some(t => text(t) === '·'.repeat(3))).toBe(true)
+  expect(texts.some(t => text(t) === '●●●●')).toBe(true)
+  expect(texts.some(t => /^[●·]{6,}$/.test(text(t)))).toBe(false)
+  await band.unmount()
+})
