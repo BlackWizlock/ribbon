@@ -44,6 +44,20 @@
       "default": "mixed",
       "options": ["mixed", "even", "solid"]
     },
+    "context": {
+      "type": "string",
+      "title": "Context",
+      "description": "shown adds a CTX bar first, the share of the context window in use, drawn like the usage windows",
+      "default": "hidden",
+      "options": ["hidden", "shown"]
+    },
+    "branch": {
+      "type": "string",
+      "title": "Git branch",
+      "description": "shown adds the session's git branch after the windows, with * when the working tree has changes",
+      "default": "hidden",
+      "options": ["hidden", "shown"]
+    },
     "align": {
       "type": "string",
       "title": "Layout",

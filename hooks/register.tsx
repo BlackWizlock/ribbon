@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { CacheFacts, Fold, Window } from '../types'
+import type { CacheFacts, Fold, Meta, Window } from '../types'
 import {
   BG, CHIP_SMALL, EMPTY, HUE, INK, MUTED, ORANGE, ROBO_SMALL, TEXT, TTL_MIN, TTL_MS, WORD, YELLOW,
   WIDE_AT, WIDE_CACHE_AT, WIDE_FOOTNOTE_AT, bandPx, cardSvg, chipSvg, costOf, familyOf, fmtIdle, kindOf, mineModel, roboSvg, usd,
@@ -25,13 +25,14 @@ const TIGHT_CELLS = 6
 const TICK_MS = 30_000
 
 const windows = atom({ plugin: 'ribbon', key: 'windows' } as const, [] as Window[])
+const meta = atom({ plugin: 'ribbon', key: 'meta' } as const, { ctx: null, branch: null } as Meta)
 const cache = atom({ plugin: 'ribbon', key: 'cache' } as const, null as CacheFacts | null)
 const fold = atom({ plugin: 'ribbon', key: 'fold' } as const, null as Fold | null)
 
-const NAMES: Record<string, string> = { seven_day: '7D', five_hour: '5H', spend_limit: 'SPEND' }
+const NAMES: Record<string, string> = { seven_day: '7D', five_hour: '5H', spend_limit: 'SPEND', context: 'CTX' }
 const ORDER: Record<string, number> = { seven_day: 0, five_hour: 1 }
 const ORDER_5H_FIRST: Record<string, number> = { five_hour: 0, seven_day: 1 }
-const COLORS: Record<string, string> = { seven_day: ORANGE, five_hour: YELLOW }
+const COLORS: Record<string, string> = { seven_day: ORANGE, five_hour: YELLOW, context: TEXT }
 /** colors: level, by the share used, as a traffic-light status line draws it (xterm 82, 220, 203). */
 const levelColor = (used: number): string => (used >= 80 ? '#ff5f5f' : used >= 50 ? '#ffd700' : '#5fff00')
 
@@ -90,6 +91,25 @@ const recall = async ($: EngineInterface): Promise<Window[]> => {
   return (v as Window[]).filter(w => !w.resetsAt || Date.parse(w.resetsAt) > now)
 }
 
+/** The branch as a status line shows it: the short commit when detached, `*` when the tree has changes. */
+const gitBranch = async ($: EngineInterface): Promise<string | null> => {
+  try {
+    const head = await $.process.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], { timeoutMs: 5000 })
+    if (head.exitCode !== 0) return null
+    let name = head.stdout.trim()
+    if (name === 'HEAD') name = (await $.process.run(['git', 'rev-parse', '--short', 'HEAD'], { timeoutMs: 5000 })).stdout.trim()
+    const diff = await $.process.run(['git', 'diff', '--quiet'], { timeoutMs: 5000 })
+    return name ? `${name}${diff.exitCode === 0 ? '' : '*'}` : null
+  } catch {
+    return null
+  }
+}
+
+const refreshBranch = async ($: EngineInterface): Promise<void> => {
+  const branch = await gitBranch($)
+  await update($, meta, m => (m.branch === branch ? m : { ...m, branch }))
+}
+
 const pull = async ($: EngineInterface): Promise<void> => {
   const u = await $.session.usage()
   const fresh = clean(u.rateLimits)
@@ -123,10 +143,20 @@ export const register: Register = (on, options) => {
   const byLevel = options.colors === 'level'
   const dotStyle: Dots = options.dots === 'even' || options.dots === 'solid' ? options.dots : 'mixed'
   const offColor = dotStyle === 'mixed' ? EMPTY : EVEN_OFF
+  const showCtx = options.context === 'shown'
+  const showBranch = options.branch === 'shown'
 
   on('session.start', async ($, e, next) => {
     await pull($)
-    $.clock.every(TICK_MS, () => $.ui.invalidate('ui.render'))
+    if (showCtx) {
+      const ctx = (await $.session.usage()).context.percent ?? null
+      await update($, meta, m => ({ ...m, ctx }))
+    }
+    if (showBranch) await refreshBranch($)
+    $.clock.every(TICK_MS, async () => {
+      if (showBranch) await refreshBranch($)
+      $.ui.invalidate('ui.render')
+    })
     return next(e)
   })
 
@@ -135,6 +165,10 @@ export const register: Register = (on, options) => {
       const fresh = clean(e.rateLimits)
       await remember($, fresh)
       if (fresh.length > 0) await update($, windows, () => fresh)
+    }
+    if (showCtx && e.changed.includes('context') && typeof e.context.percent === 'number') {
+      const ctx = e.context.percent
+      await update($, meta, m => ({ ...m, ctx }))
     }
     if (e.changed.includes('context') && e.context.tokens && e.context.tokens > 0) {
       const tokens = e.context.tokens
@@ -195,6 +229,10 @@ export const register: Register = (on, options) => {
     const list = [...(await read($, windows))].sort((a, b) => (order[a.kind] ?? 9) - (order[b.kind] ?? 9))
     const now = await $.clock.now()
     const view = viewOf(await read($, cache), now)
+    const m = await read($, meta)
+    // Context reads as one more window, first, as a status line puts it; it has no reset.
+    const ctxRow: Window[] = showCtx && m.ctx !== null ? [{ kind: 'context', percentUsed: m.ctx }] : []
+    const branch = showBranch ? m.branch : null
 
     if (list.length === 0 && !view) {
       return (
@@ -209,7 +247,9 @@ export const register: Register = (on, options) => {
       : !Svg || textSize === 'body' ? WIDE_CACHE_AT
       : textSize === 'footnote' ? WIDE_FOOTNOTE_AT
       : WIDE_AT
-    const kind = kindOf(columns, wideAt)
+    // Each extra block asks for its columns before the band keeps one row.
+    const extra = (ctxRow.length > 0 ? 20 : 0) + (branch ? branch.length + 5 : 0)
+    const kind = kindOf(columns, wideAt + extra)
     const isWide = kind === 'wide'
     const cells = kind === 'tight' ? TIGHT_CELLS : CELLS
 
@@ -266,9 +306,21 @@ export const register: Register = (on, options) => {
         <Text size={size} color={TEXT} bold>USAGE</Text>
       </Box>
     ) : null
-    const usage = list.length > 0
-      ? list.map(isWide ? wide : stacked)
-      : [<Box key="wait" flexShrink={0} marginRight={3}><Text size={size} color={MUTED}>waiting for the first reply</Text></Box>]
+    const draw = isWide ? wide : stacked
+    const usage = [
+      ...ctxRow.map((w, i) => draw(w, i)),
+      ...(list.length > 0
+        ? list.map((w, i) => draw(w, i + ctxRow.length))
+        : [<Box key="wait" flexShrink={0} marginRight={3}><Text size={size} color={MUTED}>waiting for the first reply</Text></Box>]),
+      ...(branch
+        ? [
+            <Box key="branch" flexDirection="row" flexShrink={0} marginRight={3}>
+              <Text size={size} color={MUTED}>⎇ </Text>
+              <Text size={size} color={TEXT}>{branch}</Text>
+            </Box>,
+          ]
+        : []),
+    ]
 
     // Before the first reply there is no cache to show: today's band, as it was.
     if (!view) {
