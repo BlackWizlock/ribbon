@@ -23,6 +23,13 @@
       "default": "7d",
       "options": ["7d", "5h"]
     },
+    "label": {
+      "type": "string",
+      "title": "USAGE label",
+      "description": "shown puts the word USAGE at the start of the band; hidden leaves just the windows",
+      "default": "shown",
+      "options": ["shown", "hidden"]
+    },
     "align": {
       "type": "string",
       "title": "Layout",

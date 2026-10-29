@@ -87,13 +87,15 @@ const measure = async ($: EngineInterface, lastAt: number | null, model: string 
 }
 
 export const register: Register = (on, options) => {
-  // userConfig: which figure the bars show, which window comes first, whether the blocks spread
-  // across the band, and the band's text size where the surface has sizes.
+  // userConfig: which figure the bars show, which window comes first, whether the USAGE label
+  // shows, whether the blocks spread across the band, and the band's text size where the surface
+  // has sizes.
   const shows: 'left' | 'used' = options.usage === 'used' ? 'used' : 'left'
   const textSize: 'caption' | 'footnote' | 'body' =
     options.textSize === 'footnote' || options.textSize === 'body' ? options.textSize : 'caption'
   const order = options.first === '5h' ? ORDER_5H_FIRST : ORDER
   const spread = options.align === 'spread'
+  const showLabel = options.label !== 'hidden'
 
   on('session.start', async ($, e, next) => {
     await pull($)
@@ -230,11 +232,11 @@ export const register: Register = (on, options) => {
       )
     }
 
-    const label = (
+    const label = showLabel ? (
       <Box key="label" flexShrink={0} marginRight={isWide ? 2 : 3}>
         <Text size={size} color={TEXT} bold>USAGE</Text>
       </Box>
-    )
+    ) : null
     const usage = list.length > 0
       ? list.map(isWide ? wide : stacked)
       : [<Box key="wait" flexShrink={0} marginRight={3}><Text size={size} color={MUTED}>waiting for the first reply</Text></Box>]
@@ -288,8 +290,9 @@ export const register: Register = (on, options) => {
     // the blocks, so the band fills its width; USAGE stays next to the first window.
     const lay = (blocks: unknown[]) => {
       const items = [...blocks, button].filter(Boolean)
+      const lead = label ? 2 : 1
       return spread
-        ? items.flatMap((b, i) => (i < 2 ? [b] : [<Box key={`gap-${i}`} flexGrow={1} />, b]))
+        ? items.flatMap((b, i) => (i < lead ? [b] : [<Box key={`gap-${i}`} flexGrow={1} />, b]))
         : [...blocks, grow, button]
     }
 
